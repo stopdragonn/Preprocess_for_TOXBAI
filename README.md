@@ -160,14 +160,21 @@ import pandas as pd
 from tqdm import tqdm
 
 tqdm.pandas()
-from workflow import strip_salts, filter_organic, calc_descriptors, parallel_series_apply
+from workflow import (
+    load_salt_remover,
+    strip_salts,
+    filter_organic,
+    calc_descriptors,
+    parallel_series_apply,
+)
 import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--input', required=True)
-parser.add_argument('--salts', required=True)
+parser.add_argument('--salts', default='Salts.txt')
 parser.add_argument('--output_dir', required=True)
 parser.add_argument('--compute-descriptors', action='store_true')
+parser.add_argument('--smiles-col', default='SMILES')
 parser.add_argument('--n-procs', type=int, default=1)
 args = parser.parse_args()
 
@@ -175,14 +182,18 @@ args = parser.parse_args()
 df = pd.read_csv(args.input)
 
 # 2) Salt stripping
- df['smiles_stripped'] = parallel_series_apply(
-     df['SMILES'],
-     strip_salts,
-     n_procs=args.n_procs,
-     desc='salt_strip'
- )
- filtered1 = df.dropna(subset=['smiles_stripped'])
- filtered1.to_csv(f"{args.output_dir}/Preprocessed2_Saltstripped.csv", index=False)
+remover = load_salt_remover(args.salts)
+df['smiles_stripped'] = parallel_series_apply(
+    df[args.smiles_col],
+    lambda s: strip_salts(s, remover),
+    n_procs=args.n_procs,
+    desc='salt_strip'
+)
+filtered1 = df.dropna(subset=['smiles_stripped'])
+filtered1.to_csv(
+    f"{args.output_dir}/Preprocessed2_Saltstripped.csv",
+    index=False,
+)
 
 # 3) Organic filtering
  mask = parallel_series_apply(
@@ -191,8 +202,11 @@ df = pd.read_csv(args.input)
      n_procs=args.n_procs,
      desc='organic_filter'
  )
- filtered2 = filtered1[mask]
- filtered2.to_csv(f"{args.output_dir}/Preprocessed3_Organicselected.csv", index=False)
+filtered2 = filtered1[mask]
+filtered2.to_csv(
+    f"{args.output_dir}/Preprocessed3_Organicselected.csv",
+    index=False,
+)
 
 # 4) Optional: Descriptor generation
  if args.compute_descriptors:
