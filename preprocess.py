@@ -37,8 +37,6 @@ def main():
     if args.smiles_col not in df.columns:
         raise ValueError(f"Column '{args.smiles_col}' not found in input")
     remover = load_salt_remover(args.salts)
-    tqdm.pandas()
-
     # Salt stripping
     df['smiles_stripped'] = parallel_series_apply(
         df[args.smiles_col],

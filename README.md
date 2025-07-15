@@ -157,9 +157,6 @@ def calc_descriptors(smiles: str) -> dict:
 
 ```python
 import pandas as pd
-from tqdm import tqdm
-
-tqdm.pandas()
 from workflow import (
     load_salt_remover,
     strip_salts,

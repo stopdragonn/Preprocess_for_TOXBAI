@@ -66,7 +66,11 @@ def parallel_series_apply(
 ) -> pd.Series:
     """Apply a function to a pandas Series with optional multiprocessing."""
     if n_procs <= 1:
-        return series.progress_apply(func, desc=desc)
+        # Sequential processing with a progress bar
+        results = []
+        for item in tqdm(series, desc=desc):
+            results.append(func(item))
+        return pd.Series(results, index=series.index)
 
     with Pool(processes=n_procs) as pool:
         iterator = pool.imap(func, series.tolist(), chunksize)
