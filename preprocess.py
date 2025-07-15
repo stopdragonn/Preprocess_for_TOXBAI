@@ -43,9 +43,15 @@ def main():
 
     # Optional descriptor generation
     if args.compute_descriptors:
-        desc_list = [calc_descriptors(smi) for smi in tqdm(filtered2['smiles_stripped'], desc='descriptors')]
-        pd.concat([filtered2.reset_index(drop=True), pd.DataFrame(desc_list)], axis=1).to_csv(
-            os.path.join(args.output_dir, 'Preprocessed4_DescriptorGen.csv'), index=False
+        desc_df = filtered2['smiles_stripped'].progress_apply(
+            calc_descriptors, desc='descriptors'
+        ).apply(pd.Series)
+        pd.concat(
+            [filtered2.reset_index(drop=True), desc_df.reset_index(drop=True)],
+            axis=1,
+        ).to_csv(
+            os.path.join(args.output_dir, 'Preprocessed4_DescriptorGen.csv'),
+            index=False,
         )
 
 

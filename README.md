@@ -155,6 +155,8 @@ def calc_descriptors(smiles: str) -> dict:
 ```python
 import pandas as pd
 from tqdm import tqdm
+
+tqdm.pandas()
 from workflow import strip_salts, filter_organic, calc_descriptors
 import argparse
 
@@ -169,18 +171,18 @@ args = parser.parse_args()
 df = pd.read_csv(args.input)
 
 # 2) Salt stripping
- df['smiles_stripped'] = df['SMILES'].apply(strip_salts)
+ df['smiles_stripped'] = df['SMILES'].progress_apply(strip_salts)
  filtered1 = df.dropna(subset=['smiles_stripped'])
  filtered1.to_csv(f"{args.output_dir}/Preprocessed2_Saltstripped.csv", index=False)
 
 # 3) Organic filtering
- filtered2 = filtered1[filtered1['smiles_stripped'].apply(filter_organic)]
+ filtered2 = filtered1[filtered1['smiles_stripped'].progress_apply(filter_organic)]
  filtered2.to_csv(f"{args.output_dir}/Preprocessed3_Organicselected.csv", index=False)
 
 # 4) Optional: Descriptor generation
  if args.compute_descriptors:
-     desc_list = [calc_descriptors(smi) for smi in tqdm(filtered2['smiles_stripped'])]
-     pd.concat([filtered2.reset_index(drop=True), pd.DataFrame(desc_list)], axis=1)\
+     desc_df = filtered2['smiles_stripped'].progress_apply(calc_descriptors).apply(pd.Series)
+     pd.concat([filtered2.reset_index(drop=True), desc_df.reset_index(drop=True)], axis=1)\
        .to_csv(f"{args.output_dir}/Preprocessed4_DescriptorGen.csv", index=False)
 ```
 
