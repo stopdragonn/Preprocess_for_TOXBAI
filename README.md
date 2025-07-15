@@ -63,7 +63,8 @@ pip install -r requirements.txt
 python preprocess.py \
   --input Preprocessed1_Uniq&NaNhandling.csv \
   --salts Salts.txt \
-  --output_dir ./outputs
+  --output_dir ./outputs \
+  --smiles-col SMILES
 ```
 
 분자설명자 계산까지 포함 실행:
@@ -73,10 +74,11 @@ python preprocess.py \
   --input Preprocessed1_Uniq&NaNhandling.csv \
   --salts Salts.txt \
   --output_dir ./outputs \
-  --compute-descriptors
+  --compute-descriptors \
+  --smiles-col SMILES
 ```
 
-필요에 따라 `--input`, `--output_dir`, `--compute-descriptors` 옵션을 조정하세요.
+필요에 따라 `--input`, `--output_dir`, `--compute-descriptors`, `--smiles-col` 옵션을 조정하세요.
 
 ## 워크플로우 단계
 
