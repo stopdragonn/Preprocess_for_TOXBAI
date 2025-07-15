@@ -6,13 +6,23 @@ from workflow import load_salt_remover, strip_salts, filter_organic, calc_descri
 
 
 def main():
+    """Command-line interface for running the preprocessing pipeline."""
     parser = argparse.ArgumentParser(description="SMILES preprocessing pipeline")
     parser.add_argument('--input', required=True, help='Input CSV file')
-    parser.add_argument('--salts', required=True, help='Salt definition file for RDKit SaltRemover')
+    parser.add_argument(
+        '--salts',
+        default='Salts.txt',
+        help='Salt definition file for RDKit SaltRemover (default: Salts.txt)'
+    )
     parser.add_argument('--output_dir', required=True, help='Directory to write outputs')
     parser.add_argument('--compute-descriptors', action='store_true', help='Whether to compute descriptors')
     parser.add_argument('--smiles-col', default='SMILES', help='Column name containing SMILES strings')
     args = parser.parse_args()
+
+    if not os.path.isfile(args.input):
+        raise FileNotFoundError(f"Input file not found: {args.input}")
+    if not os.path.isfile(args.salts):
+        raise FileNotFoundError(f"Salt definition file not found: {args.salts}")
 
     os.makedirs(args.output_dir, exist_ok=True)
 

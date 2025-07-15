@@ -37,7 +37,7 @@
 
 ```bash
 # Conda 환경 생성 예시
-donda create -n chem_preprocess python=3.8
+conda create -n chem_preprocess python=3.8
 conda activate chem_preprocess
 pip install rdkit-pypi pandas tqdm
 ```
@@ -62,7 +62,6 @@ pip install -r requirements.txt
 ```bash
 python preprocess.py \
   --input Preprocessed1_Uniq&NaNhandling.csv \
-  --salts Salts.txt \
   --output_dir ./outputs \
   --smiles-col SMILES
 ```
@@ -72,13 +71,12 @@ python preprocess.py \
 ```bash
 python preprocess.py \
   --input Preprocessed1_Uniq&NaNhandling.csv \
-  --salts Salts.txt \
   --output_dir ./outputs \
   --compute-descriptors \
   --smiles-col SMILES
 ```
 
-필요에 따라 `--input`, `--output_dir`, `--compute-descriptors`, `--smiles-col` 옵션을 조정하세요.
+`--salts` 옵션은 지정하지 않으면 `Salts.txt`를 사용합니다. 필요에 따라 `--input`, `--output_dir`, `--compute-descriptors`, `--smiles-col` 옵션을 조정하세요.
 
 ## 워크플로우 단계
 
