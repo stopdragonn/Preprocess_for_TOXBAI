@@ -1,6 +1,6 @@
 # SMILES 전처리 파이프라인
 
-> RDKit과 pandas를 이용해 SMILES 데이터에 대해 ‘염 제거 → 유기물질 선택 → 분자설명자 계산’ 단계를 자동화하는 워크플로우입니다.
+> RDKit과 pandas를 이용해 SMILES 데이터에 대해 ‘염 제거 → 유기물질 선택 → (선택적) 분자설명자 계산’ 단계를 자동화하는 워크플로우입니다.
 
 ## 목차
 
@@ -13,7 +13,7 @@
 
   * [1. 염 제거 (Salt Stripping)](#1-염-제거-salt-stripping)
   * [2. 유기물질 선택 (Organic Subset Filtering)](#2-유기물질-선택-organic-subset-filtering)
-  * [3. 분자설명자 생성 (Descriptor Calculation)](#3-분자설명자-생성-descriptor-calculation)
+  * [3. (선택적) 분자설명자 생성 (Descriptor Calculation)](#3-선택적-분자설명자-생성-descriptor-calculation)
 * [파이프라인 예제](#파이프라인-예제)
 * [저장소 구조](#저장소-구조)
 * [기여](#기여)
@@ -23,7 +23,7 @@
 
 ## 소개
 
-이 저장소는 전처리된 SMILES 데이터를 바탕으로 RDKit을 활용해 염 제거, 유기물질 필터링, 분자설명자 계산을 수행하는 Python 스크립트를 제공합니다. 후임자나 협업 연구진이 코드 구조를 빠르게 이해하고 실행할 수 있도록 설계되었습니다.
+이 저장소는 전처리된 SMILES 데이터를 바탕으로 RDKit을 활용해 염 제거, 유기물질 필터링 단계를 수행하고, 필요 시 분자설명자 계산 단계를 추가로 실행할 수 있는 Python 스크립트를 제공합니다. 후임자나 협업 연구진이 코드 구조를 빠르게 이해하고 실행할 수 있도록 설계되었습니다.
 
 ## 사전 요구사항
 
@@ -57,6 +57,8 @@ pip install -r requirements.txt
 
 ## 사용법
 
+기본 전처리만 실행:
+
 ```bash
 python preprocess.py \
   --input Preprocessed1_Uniq&NaNhandling.csv \
@@ -64,7 +66,17 @@ python preprocess.py \
   --output_dir ./outputs
 ```
 
-필요에 따라 `--input` 및 `--output_dir` 경로를 조정하세요.
+분자설명자 계산까지 포함 실행:
+
+```bash
+python preprocess.py \
+  --input Preprocessed1_Uniq&NaNhandling.csv \
+  --salts Salts.txt \
+  --output_dir ./outputs \
+  --compute-descriptors
+```
+
+필요에 따라 `--input`, `--output_dir`, `--compute-descriptors` 옵션을 조정하세요.
 
 ## 워크플로우 단계
 
@@ -107,7 +119,7 @@ def filter_organic(smiles: str) -> bool:
 * **출력**: `Preprocessed3_Organicselected.csv`
 * **검증**: 필터링 건수 로그 출력
 
-### 3. 분자설명자 생성 (Descriptor Calculation)
+### 3. (선택적) 분자설명자 생성 (Descriptor Calculation)
 
 ```python
 import pandas as pd
@@ -135,7 +147,7 @@ def calc_descriptors(smiles: str) -> dict:
 ```
 
 * **입력**: `Preprocessed3_Organicselected.csv`
-* **출력**: `Preprocessed4_DescriptorGen.csv`
+* **출력**: `Preprocessed4_DescriptorGen.csv` (해당 옵션 실행 시)
 * **예외처리**: 계산 실패 시 None
 
 ## 파이프라인 예제
@@ -144,36 +156,46 @@ def calc_descriptors(smiles: str) -> dict:
 import pandas as pd
 from tqdm import tqdm
 from workflow import strip_salts, filter_organic, calc_descriptors
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--input', required=True)
+parser.add_argument('--salts', required=True)
+parser.add_argument('--output_dir', required=True)
+parser.add_argument('--compute-descriptors', action='store_true')
+args = parser.parse_args()
 
 # 1) Load
-df = pd.read_csv('Preprocessed1_Uniq&NaNhandling.csv')
+df = pd.read_csv(args.input)
 
 # 2) Salt stripping
  df['smiles_stripped'] = df['SMILES'].apply(strip_salts)
- df.dropna(subset=['smiles_stripped']).to_csv('Preprocessed2_Saltstripped.csv', index=False)
+ filtered1 = df.dropna(subset=['smiles_stripped'])
+ filtered1.to_csv(f"{args.output_dir}/Preprocessed2_Saltstripped.csv", index=False)
 
 # 3) Organic filtering
- filtered = df[df['smiles_stripped'].apply(filter_organic)]
- filtered.to_csv('Preprocessed3_Organicselected.csv', index=False)
+ filtered2 = filtered1[filtered1['smiles_stripped'].apply(filter_organic)]
+ filtered2.to_csv(f"{args.output_dir}/Preprocessed3_Organicselected.csv", index=False)
 
-# 4) Descriptor generation
- desc_list = [calc_descriptors(smi) for smi in tqdm(filtered['smiles_stripped'])]
- pd.concat([filtered.reset_index(drop=True), pd.DataFrame(desc_list)], axis=1)\
-   .to_csv('Preprocessed4_DescriptorGen.csv', index=False)
+# 4) Optional: Descriptor generation
+ if args.compute_descriptors:
+     desc_list = [calc_descriptors(smi) for smi in tqdm(filtered2['smiles_stripped'])]
+     pd.concat([filtered2.reset_index(drop=True), pd.DataFrame(desc_list)], axis=1)\
+       .to_csv(f"{args.output_dir}/Preprocessed4_DescriptorGen.csv", index=False)
 ```
 
 ## 저장소 구조
 
 ```
 ├── Salts.txt
-├── preprocess.py
-├── workflow.py      # 함수 정의 모듈
+├── preprocess.py  # 파이프라인 실행 스크립트
+├── workflow.py     # 함수 정의 모듈
 ├── requirements.txt
 ├── README.md
 └── outputs/
     ├── Preprocessed2_Saltstripped.csv
     ├── Preprocessed3_Organicselected.csv
-    └── Preprocessed4_DescriptorGen.csv
+    └── Preprocessed4_DescriptorGen.csv  # 옵션 실행 시
 ```
 
 ## 기여
