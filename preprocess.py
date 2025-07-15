@@ -2,7 +2,13 @@ import argparse
 import os
 import pandas as pd
 from tqdm import tqdm
-from workflow import load_salt_remover, strip_salts, filter_organic, calc_descriptors
+from workflow import (
+    load_salt_remover,
+    strip_salts,
+    filter_organic,
+    calc_descriptors,
+    parallel_series_apply,
+)
 
 
 def main():
@@ -17,6 +23,7 @@ def main():
     parser.add_argument('--output_dir', required=True, help='Directory to write outputs')
     parser.add_argument('--compute-descriptors', action='store_true', help='Whether to compute descriptors')
     parser.add_argument('--smiles-col', default='SMILES', help='Column name containing SMILES strings')
+    parser.add_argument('--n-procs', type=int, default=1, help='Number of parallel processes')
     args = parser.parse_args()
 
     if not os.path.isfile(args.input):
@@ -33,18 +40,32 @@ def main():
     tqdm.pandas()
 
     # Salt stripping
-    df['smiles_stripped'] = df[args.smiles_col].progress_apply(lambda s: strip_salts(s, remover), desc='salt_strip')
+    df['smiles_stripped'] = parallel_series_apply(
+        df[args.smiles_col],
+        lambda s: strip_salts(s, remover),
+        n_procs=args.n_procs,
+        desc='salt_strip',
+    )
     filtered1 = df.dropna(subset=['smiles_stripped'])
     filtered1.to_csv(os.path.join(args.output_dir, 'Preprocessed2_Saltstripped.csv'), index=False)
 
     # Organic filtering
-    filtered2 = filtered1[filtered1['smiles_stripped'].progress_apply(filter_organic, desc='organic_filter')]
+    mask_organic = parallel_series_apply(
+        filtered1['smiles_stripped'],
+        filter_organic,
+        n_procs=args.n_procs,
+        desc='organic_filter',
+    )
+    filtered2 = filtered1[mask_organic]
     filtered2.to_csv(os.path.join(args.output_dir, 'Preprocessed3_Organicselected.csv'), index=False)
 
     # Optional descriptor generation
     if args.compute_descriptors:
-        desc_df = filtered2['smiles_stripped'].progress_apply(
-            calc_descriptors, desc='descriptors'
+        desc_df = parallel_series_apply(
+            filtered2['smiles_stripped'],
+            calc_descriptors,
+            n_procs=args.n_procs,
+            desc='descriptors',
         ).apply(pd.Series)
         pd.concat(
             [filtered2.reset_index(drop=True), desc_df.reset_index(drop=True)],

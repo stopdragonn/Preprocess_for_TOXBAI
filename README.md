@@ -63,7 +63,8 @@ pip install -r requirements.txt
 python preprocess.py \
   --input Preprocessed1_Uniq&NaNhandling.csv \
   --output_dir ./outputs \
-  --smiles-col SMILES
+  --smiles-col SMILES \
+  --n-procs 4
 ```
 
 분자설명자 계산까지 포함 실행:
@@ -73,10 +74,12 @@ python preprocess.py \
   --input Preprocessed1_Uniq&NaNhandling.csv \
   --output_dir ./outputs \
   --compute-descriptors \
-  --smiles-col SMILES
+  --smiles-col SMILES \
+  --n-procs 4
 ```
 
 `--salts` 옵션은 지정하지 않으면 `Salts.txt`를 사용합니다. 필요에 따라 `--input`, `--output_dir`, `--compute-descriptors`, `--smiles-col` 옵션을 조정하세요.
+병렬 처리를 위해 `--n-procs` 값(기본 1)을 늘리면 성능을 높일 수 있습니다.
 
 ## 워크플로우 단계
 
@@ -157,7 +160,7 @@ import pandas as pd
 from tqdm import tqdm
 
 tqdm.pandas()
-from workflow import strip_salts, filter_organic, calc_descriptors
+from workflow import strip_salts, filter_organic, calc_descriptors, parallel_series_apply
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -165,23 +168,40 @@ parser.add_argument('--input', required=True)
 parser.add_argument('--salts', required=True)
 parser.add_argument('--output_dir', required=True)
 parser.add_argument('--compute-descriptors', action='store_true')
+parser.add_argument('--n-procs', type=int, default=1)
 args = parser.parse_args()
 
 # 1) Load
 df = pd.read_csv(args.input)
 
 # 2) Salt stripping
- df['smiles_stripped'] = df['SMILES'].progress_apply(strip_salts)
+ df['smiles_stripped'] = parallel_series_apply(
+     df['SMILES'],
+     strip_salts,
+     n_procs=args.n_procs,
+     desc='salt_strip'
+ )
  filtered1 = df.dropna(subset=['smiles_stripped'])
  filtered1.to_csv(f"{args.output_dir}/Preprocessed2_Saltstripped.csv", index=False)
 
 # 3) Organic filtering
- filtered2 = filtered1[filtered1['smiles_stripped'].progress_apply(filter_organic)]
+ mask = parallel_series_apply(
+     filtered1['smiles_stripped'],
+     filter_organic,
+     n_procs=args.n_procs,
+     desc='organic_filter'
+ )
+ filtered2 = filtered1[mask]
  filtered2.to_csv(f"{args.output_dir}/Preprocessed3_Organicselected.csv", index=False)
 
 # 4) Optional: Descriptor generation
  if args.compute_descriptors:
-     desc_df = filtered2['smiles_stripped'].progress_apply(calc_descriptors).apply(pd.Series)
+     desc_df = parallel_series_apply(
+         filtered2['smiles_stripped'],
+         calc_descriptors,
+         n_procs=args.n_procs,
+         desc='descriptors'
+     ).apply(pd.Series)
      pd.concat([filtered2.reset_index(drop=True), desc_df.reset_index(drop=True)], axis=1)\
        .to_csv(f"{args.output_dir}/Preprocessed4_DescriptorGen.csv", index=False)
 ```

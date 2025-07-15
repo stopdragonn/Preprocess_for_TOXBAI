@@ -1,5 +1,9 @@
 from rdkit import Chem
 from rdkit.Chem import SaltRemover, Descriptors
+from multiprocessing import Pool
+from typing import Callable
+import pandas as pd
+from tqdm import tqdm
 
 # Allowed atoms for organic subset
 ALLOWED_ATOMS = {
@@ -51,3 +55,20 @@ def calc_descriptors(smiles: str) -> dict:
         except Exception:
             values[name] = None
     return values
+
+
+def parallel_series_apply(
+    series: pd.Series,
+    func: Callable[[str], object],
+    n_procs: int = 1,
+    desc: str | None = None,
+    chunksize: int = 100,
+) -> pd.Series:
+    """Apply a function to a pandas Series with optional multiprocessing."""
+    if n_procs <= 1:
+        return series.progress_apply(func, desc=desc)
+
+    with Pool(processes=n_procs) as pool:
+        iterator = pool.imap(func, series.tolist(), chunksize)
+        results = list(tqdm(iterator, total=len(series), desc=desc))
+    return pd.Series(results, index=series.index)
