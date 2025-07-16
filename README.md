@@ -37,7 +37,7 @@
 
 ```bash
 # Conda 환경 생성 예시
-donda create -n chem_preprocess python=3.8
+conda create -n chem_preprocess python=3.8
 conda activate chem_preprocess
 pip install rdkit-pypi pandas tqdm
 ```
@@ -62,8 +62,10 @@ pip install -r requirements.txt
 ```bash
 python preprocess.py \
   --input Preprocessed1_Uniq&NaNhandling.csv \
-  --salts Salts.txt \
-  --output_dir ./outputs
+  --output_dir ./outputs \
+  --smiles-col SMILES \
+  --n-procs 4 \
+  --chunksize 100
 ```
 
 분자설명자 계산까지 포함 실행:
@@ -71,12 +73,15 @@ python preprocess.py \
 ```bash
 python preprocess.py \
   --input Preprocessed1_Uniq&NaNhandling.csv \
-  --salts Salts.txt \
   --output_dir ./outputs \
-  --compute-descriptors
+  --compute-descriptors \
+  --smiles-col SMILES \
+  --n-procs 4 \
+  --chunksize 100
 ```
 
-필요에 따라 `--input`, `--output_dir`, `--compute-descriptors` 옵션을 조정하세요.
+`--salts` 옵션은 지정하지 않으면 `Salts.txt`를 사용합니다. 필요에 따라 `--input`, `--output_dir`, `--compute-descriptors`, `--smiles-col` 옵션을 조정하세요.
+병렬 처리를 위해 `--n-procs` 값(기본 1)을 늘리고, `--chunksize` 값(기본 100)을 조정해 성능을 최적화할 수 있습니다.
 
 ## 워크플로우 단계
 
@@ -130,7 +135,11 @@ descriptor_funcs = {
     'SlogP': Descriptors.MolLogP,
     'SMR': Descriptors.MolMR,
     'LabuteASA': Descriptors.LabuteASA,
-    # ...
+    'MolWt': Descriptors.MolWt,
+    'NumHAcceptors': Descriptors.NumHAcceptors,
+    'NumHDonors': Descriptors.NumHDonors,
+    'TPSA': Descriptors.TPSA,
+    'NumRotatableBonds': Descriptors.NumRotatableBonds,
 }
 
 def calc_descriptors(smiles: str) -> dict:
@@ -154,33 +163,67 @@ def calc_descriptors(smiles: str) -> dict:
 
 ```python
 import pandas as pd
-from tqdm import tqdm
-from workflow import strip_salts, filter_organic, calc_descriptors
+from workflow import (
+    load_salt_remover,
+    strip_salts,
+    filter_organic,
+    calc_descriptors,
+    parallel_series_apply,
+)
 import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--input', required=True)
-parser.add_argument('--salts', required=True)
+parser.add_argument('--salts', default='Salts.txt')
 parser.add_argument('--output_dir', required=True)
 parser.add_argument('--compute-descriptors', action='store_true')
+parser.add_argument('--smiles-col', default='SMILES')
+parser.add_argument('--n-procs', type=int, default=1)
+parser.add_argument('--chunksize', type=int, default=100)
 args = parser.parse_args()
 
 # 1) Load
 df = pd.read_csv(args.input)
 
 # 2) Salt stripping
- df['smiles_stripped'] = df['SMILES'].apply(strip_salts)
- filtered1 = df.dropna(subset=['smiles_stripped'])
- filtered1.to_csv(f"{args.output_dir}/Preprocessed2_Saltstripped.csv", index=False)
+remover = load_salt_remover(args.salts)
+df['smiles_stripped'] = parallel_series_apply(
+    df[args.smiles_col],
+    lambda s: strip_salts(s, remover),
+    n_procs=args.n_procs,
+    desc='salt_strip',
+    chunksize=args.chunksize,
+)
+filtered1 = df.dropna(subset=['smiles_stripped'])
+filtered1.to_csv(
+    f"{args.output_dir}/Preprocessed2_Saltstripped.csv",
+    index=False,
+)
 
 # 3) Organic filtering
- filtered2 = filtered1[filtered1['smiles_stripped'].apply(filter_organic)]
- filtered2.to_csv(f"{args.output_dir}/Preprocessed3_Organicselected.csv", index=False)
+ mask = parallel_series_apply(
+     filtered1['smiles_stripped'],
+     filter_organic,
+     n_procs=args.n_procs,
+     desc='organic_filter',
+     chunksize=args.chunksize,
+ )
+filtered2 = filtered1[mask]
+filtered2.to_csv(
+    f"{args.output_dir}/Preprocessed3_Organicselected.csv",
+    index=False,
+)
 
 # 4) Optional: Descriptor generation
  if args.compute_descriptors:
-     desc_list = [calc_descriptors(smi) for smi in tqdm(filtered2['smiles_stripped'])]
-     pd.concat([filtered2.reset_index(drop=True), pd.DataFrame(desc_list)], axis=1)\
+     desc_df = parallel_series_apply(
+         filtered2['smiles_stripped'],
+         calc_descriptors,
+         n_procs=args.n_procs,
+         desc='descriptors',
+         chunksize=args.chunksize,
+     ).apply(pd.Series)
+     pd.concat([filtered2.reset_index(drop=True), desc_df.reset_index(drop=True)], axis=1)\
        .to_csv(f"{args.output_dir}/Preprocessed4_DescriptorGen.csv", index=False)
 ```
 

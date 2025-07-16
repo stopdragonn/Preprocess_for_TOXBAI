@@ -1,0 +1,12 @@
+# Ignore Python cache files
+__pycache__/
+*.py[cod]
+
+# Ignore output files
+outputs/
+Preprocessed2_Saltstripped.csv
+Preprocessed3_Organicselected.csv
+Preprocessed4_DescriptorGen.csv
+
+# Ignore environment files
+.env
