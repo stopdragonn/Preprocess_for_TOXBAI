@@ -24,6 +24,7 @@ def main():
     parser.add_argument('--compute-descriptors', action='store_true', help='Whether to compute descriptors')
     parser.add_argument('--smiles-col', default='SMILES', help='Column name containing SMILES strings')
     parser.add_argument('--n-procs', type=int, default=1, help='Number of parallel processes')
+    parser.add_argument('--chunksize', type=int, default=100, help='Chunk size for parallel processing')
     args = parser.parse_args()
 
     if not os.path.isfile(args.input):
@@ -43,6 +44,7 @@ def main():
         lambda s: strip_salts(s, remover),
         n_procs=args.n_procs,
         desc='salt_strip',
+        chunksize=args.chunksize,
     )
     filtered1 = df.dropna(subset=['smiles_stripped'])
     filtered1.to_csv(os.path.join(args.output_dir, 'Preprocessed2_Saltstripped.csv'), index=False)
@@ -53,6 +55,7 @@ def main():
         filter_organic,
         n_procs=args.n_procs,
         desc='organic_filter',
+        chunksize=args.chunksize,
     )
     filtered2 = filtered1[mask_organic]
     filtered2.to_csv(os.path.join(args.output_dir, 'Preprocessed3_Organicselected.csv'), index=False)
@@ -64,6 +67,7 @@ def main():
             calc_descriptors,
             n_procs=args.n_procs,
             desc='descriptors',
+            chunksize=args.chunksize,
         ).apply(pd.Series)
         pd.concat(
             [filtered2.reset_index(drop=True), desc_df.reset_index(drop=True)],

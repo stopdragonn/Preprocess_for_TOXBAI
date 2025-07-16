@@ -64,7 +64,8 @@ python preprocess.py \
   --input Preprocessed1_Uniq&NaNhandling.csv \
   --output_dir ./outputs \
   --smiles-col SMILES \
-  --n-procs 4
+  --n-procs 4 \
+  --chunksize 100
 ```
 
 분자설명자 계산까지 포함 실행:
@@ -75,11 +76,12 @@ python preprocess.py \
   --output_dir ./outputs \
   --compute-descriptors \
   --smiles-col SMILES \
-  --n-procs 4
+  --n-procs 4 \
+  --chunksize 100
 ```
 
 `--salts` 옵션은 지정하지 않으면 `Salts.txt`를 사용합니다. 필요에 따라 `--input`, `--output_dir`, `--compute-descriptors`, `--smiles-col` 옵션을 조정하세요.
-병렬 처리를 위해 `--n-procs` 값(기본 1)을 늘리면 성능을 높일 수 있습니다.
+병렬 처리를 위해 `--n-procs` 값(기본 1)을 늘리고, `--chunksize` 값(기본 100)을 조정해 성능을 최적화할 수 있습니다.
 
 ## 워크플로우 단계
 
@@ -133,7 +135,11 @@ descriptor_funcs = {
     'SlogP': Descriptors.MolLogP,
     'SMR': Descriptors.MolMR,
     'LabuteASA': Descriptors.LabuteASA,
-    # ...
+    'MolWt': Descriptors.MolWt,
+    'NumHAcceptors': Descriptors.NumHAcceptors,
+    'NumHDonors': Descriptors.NumHDonors,
+    'TPSA': Descriptors.TPSA,
+    'NumRotatableBonds': Descriptors.NumRotatableBonds,
 }
 
 def calc_descriptors(smiles: str) -> dict:
@@ -173,6 +179,7 @@ parser.add_argument('--output_dir', required=True)
 parser.add_argument('--compute-descriptors', action='store_true')
 parser.add_argument('--smiles-col', default='SMILES')
 parser.add_argument('--n-procs', type=int, default=1)
+parser.add_argument('--chunksize', type=int, default=100)
 args = parser.parse_args()
 
 # 1) Load
@@ -184,7 +191,8 @@ df['smiles_stripped'] = parallel_series_apply(
     df[args.smiles_col],
     lambda s: strip_salts(s, remover),
     n_procs=args.n_procs,
-    desc='salt_strip'
+    desc='salt_strip',
+    chunksize=args.chunksize,
 )
 filtered1 = df.dropna(subset=['smiles_stripped'])
 filtered1.to_csv(
@@ -197,7 +205,8 @@ filtered1.to_csv(
      filtered1['smiles_stripped'],
      filter_organic,
      n_procs=args.n_procs,
-     desc='organic_filter'
+     desc='organic_filter',
+     chunksize=args.chunksize,
  )
 filtered2 = filtered1[mask]
 filtered2.to_csv(
@@ -211,7 +220,8 @@ filtered2.to_csv(
          filtered2['smiles_stripped'],
          calc_descriptors,
          n_procs=args.n_procs,
-         desc='descriptors'
+         desc='descriptors',
+         chunksize=args.chunksize,
      ).apply(pd.Series)
      pd.concat([filtered2.reset_index(drop=True), desc_df.reset_index(drop=True)], axis=1)\
        .to_csv(f"{args.output_dir}/Preprocessed4_DescriptorGen.csv", index=False)
