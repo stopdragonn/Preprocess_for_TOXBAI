@@ -98,7 +98,17 @@ def strip_salts(smiles: str) -> str:
     if not mol:
         return None
     stripped = remover.StripMol(mol)
-    return Chem.MolToSmiles(stripped)
+    
+    # 분자 구조 유효성 검증 추가
+    try:
+        Chem.SanitizeMol(stripped)
+        result_smiles = Chem.MolToSmiles(stripped)
+        validation_mol = Chem.MolFromSmiles(result_smiles)
+        if validation_mol is None:
+            return None
+        return result_smiles
+    except:
+        return None
 ```
 
 * **입력**: `Preprocessed1_Uniq&NaNhandling.csv`
@@ -130,16 +140,22 @@ def filter_organic(smiles: str) -> bool:
 import pandas as pd
 from rdkit import Chem
 from rdkit.Chem import Descriptors
+from rdkit.Chem import rdMolDescriptors
 
+# 확장된 descriptor 리스트 (총 119개)
 descriptor_funcs = {
     'SlogP': Descriptors.MolLogP,
     'SMR': Descriptors.MolMR,
     'LabuteASA': Descriptors.LabuteASA,
-    'MolWt': Descriptors.MolWt,
-    'NumHAcceptors': Descriptors.NumHAcceptors,
-    'NumHDonors': Descriptors.NumHDonors,
     'TPSA': Descriptors.TPSA,
+    'AMW': Descriptors.MolWt,
+    'ExactMW': Descriptors.ExactMolWt,
+    'NumLipinskiHBA': Descriptors.NumHAcceptors,
+    'NumLipinskiHBD': Descriptors.NumHDonors,
     'NumRotatableBonds': Descriptors.NumRotatableBonds,
+    # ... VSA descriptors (slogp_VSA1-12, smr_VSA1-10, peoe_VSA1-14)
+    # ... MQN descriptors (MQN1-42)
+    # ... 총 119개 descriptor 지원
 }
 
 def calc_descriptors(smiles: str) -> dict:
@@ -147,11 +163,23 @@ def calc_descriptors(smiles: str) -> dict:
     if not mol:
         return {name: None for name in descriptor_funcs}
     values = {}
+    
+    # 기본 descriptor 계산
     for name, func in descriptor_funcs.items():
         try:
             values[name] = func(mol)
         except:
             values[name] = None
+    
+    # MQN descriptor 계산 (42개)
+    try:
+        mqns = rdMolDescriptors.MQNs_(mol)
+        for i in range(42):
+            values[f'MQN{i+1}'] = mqns[i] if i < len(mqns) else None
+    except:
+        for i in range(42):
+            values[f'MQN{i+1}'] = None
+    
     return values
 ```
 
