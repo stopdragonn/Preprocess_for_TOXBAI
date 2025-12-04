@@ -85,6 +85,53 @@ python standardize_smiles.py
 - **[example_usage.py](example_usage.py)**: 7가지 사용 시나리오 예제
 - **[standardize_smiles.py](standardize_smiles.py)**: 통합 모듈 (완전한 주석 포함)
 
+## 🆕 MolVS 전용 전처리 파이프라인
+
+독성 모델링을 위한 **MolVS 전용 전처리 파이프라인** (`molvs_preprocess.py`)이 추가되었습니다!
+
+### 특징
+
+이 파이프라인은 MolVS 라이브러리만 사용하여 다음 단계를 수행합니다:
+
+1. **Standardizer**: 기본 정규화 (토토머, 이상한 결합 수정)
+2. **LargestFragmentChooser**: 가장 큰 조각만 남기기 (염/용매 제거)
+3. **Uncharger**: 전하 중화 (COO⁻ → COOH, NH₃⁺ → NH₂)
+
+### 사용법
+
+```bash
+# 필수 라이브러리 설치
+pip install molvs
+
+# 파이프라인 실행
+python molvs_preprocess.py
+```
+
+### 함수 사용 예제
+
+```python
+from molvs_preprocess import preprocess_pipeline
+
+# SMILES 전처리
+smiles = "CN(C)C(=N)N=C(N)N.Cl"  # Metformin HCl
+cleaned = preprocess_pipeline(smiles)
+print(cleaned)  # Output: CN(C)C(=N)N=C(N)N
+```
+
+### 테스트 데이터 결과
+
+| Original SMILES                                | Processed (Final)                 |
+|-----------------------------------------------|-----------------------------------|
+| `CN(C)C(=N)N=C(N)N.Cl`                       | `CN(C)C(=N)N=C(N)N`              |
+| `[Na+].[O-]C(=O)Cc1ccccc1Nc1c(Cl)cccc1Cl`    | `O=C(O)Cc1ccccc1Nc1c(Cl)cccc1Cl` |
+| `CCC.O.[Na+].[Cl-]`                           | `CCC`                             |
+
+### 왜 MolVS 전용 파이프라인을 사용하나요?
+
+- **독성 모델링 최적화**: 전하 중화된 중성 상태로 변환하여 독성 예측 모델에 더 적합
+- **간단하고 직관적**: MolVS 라이브러리만 사용하여 의존성 최소화
+- **표준 방식**: 화학정보학에서 널리 사용되는 MolVS의 표준 전처리 방식 적용
+
 ## 사전 요구사항
 
 * Python 3.8 이상
@@ -291,8 +338,11 @@ filtered2.to_csv(
 
 ```
 ├── Salts.txt
-├── preprocess.py  # 파이프라인 실행 스크립트
-├── workflow.py     # 함수 정의 모듈
+├── preprocess.py         # 파이프라인 실행 스크립트 (TOXBAI 방식)
+├── workflow.py           # 함수 정의 모듈
+├── molvs_preprocess.py   # MolVS 전용 전처리 파이프라인 ⭐NEW
+├── standardize_smiles.py # 통합 표준화 모듈
+├── example_usage.py      # standardize_smiles.py 사용 예제
 ├── requirements.txt
 ├── README.md
 └── outputs/
