@@ -46,7 +46,7 @@ DEFAULT_SALT_SMARTS = [
 
 # --- Core Functions ---
 
-def load_salt_smarts_list(salt_file: str = None) -> list:
+def load_salt_smarts_list(salt_file: str = None) -> list[Chem.Mol]:
     """
     Load salt SMARTS patterns from file or use defaults
     
@@ -84,7 +84,7 @@ def load_salt_smarts_list(salt_file: str = None) -> list:
     return salt_mols
 
 
-def strip_salts_toxbai(smiles: str, salt_mols: list) -> Optional[str]:
+def strip_salts_toxbai(smiles: str, salt_mols: list[Chem.Mol]) -> Optional[str]:
     """
     Remove salts using SMARTS-based fragment filtering
     
@@ -122,7 +122,7 @@ def strip_salts_toxbai(smiles: str, salt_mols: list) -> Optional[str]:
     if len(kept_frags) == 1:
         try:
             return Chem.MolToSmiles(kept_frags[0])
-        except:
+        except Exception:
             return None
     else:
         # Multiple non-salt fragments - combine them
@@ -131,7 +131,7 @@ def strip_salts_toxbai(smiles: str, salt_mols: list) -> Optional[str]:
             for frag in kept_frags[1:]:
                 combined = Chem.CombineMols(combined, frag)
             return Chem.MolToSmiles(combined)
-        except:
+        except Exception:
             return None
 
 
