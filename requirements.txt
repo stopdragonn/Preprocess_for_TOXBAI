@@ -1,3 +1,4 @@
 rdkit-pypi
 pandas
 tqdm
+molvs  # Optional: for MolVS standardization in standardize_smiles.py
