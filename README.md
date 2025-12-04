@@ -25,6 +25,66 @@
 
 전처리된 SMILES 데이터를 바탕으로 RDKit을 활용해 염 제거, 유기물질 필터링 단계를 수행하고, 필요 시 분자설명자 계산 단계를 추가로 실행합니다.
 
+## ✨ NEW: Enhanced Standardization Module
+
+이 리포지토리에는 이제 **통합 표준화 모듈** (`standardize_smiles.py`)이 포함되어 있습니다!
+
+### 주요 기능
+
+이 모듈은 TOXBAI 전처리 로직과 MolVS Standardizer를 통합하여 다음을 제공합니다:
+
+1. **MolVS Standardization** (선택적)
+   - Tautomer 정규화
+   - 전하 중성화
+   - 방향족 처리
+
+2. **TOXBAI-style Salt Removal**
+   - SMARTS 패턴 기반 salt 제거
+   - 커스텀 salt 리스트 지원
+
+3. **Organic Filtering**
+   - 허용된 원소만 포함하는 분자 선별
+   - 무기물 자동 제거
+
+### 빠른 시작
+
+```python
+from standardize_smiles import standardize_smiles
+
+# 기본 사용 (모든 기능 활성화)
+result = standardize_smiles("CC(=O)[O-].[Na+]")
+print(result)  # Output: CC(=O)[O-]
+
+# TOXBAI 방식만 사용 (MolVS 없이)
+from standardize_smiles import standardize_smiles_toxbai
+result = standardize_smiles_toxbai("CC(=O)[O-].[Na+]")
+
+# 커스텀 파라미터
+result = standardize_smiles(
+    "CC(=O)[O-].[Na+]",
+    use_molvs=True,
+    remove_salts=True,
+    filter_organics=True,
+    salt_file="Salts.txt"
+)
+```
+
+### 예제 실행
+
+```bash
+# 다양한 사용 예시 확인
+python example_usage.py
+
+# 모듈 직접 실행 (built-in examples)
+python standardize_smiles.py
+```
+
+### 상세 문서
+
+- **[COMPARISON.md](COMPARISON.md)**: MolVS vs TOXBAI 방식의 상세 비교
+- **[example_usage.py](example_usage.py)**: 7가지 사용 시나리오 예제
+- **[standardize_smiles.py](standardize_smiles.py)**: 통합 모듈 (완전한 주석 포함)
+
 ## 사전 요구사항
 
 * Python 3.8 이상
