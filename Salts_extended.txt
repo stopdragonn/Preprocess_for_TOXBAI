@@ -1,0 +1,170 @@
+# Extended Salt List for Pharmaceutical Preprocessing
+# 약학 전처리용 확장된 염 리스트
+# QSAR 모델링 및 독성 예측에 유용한 SMARTS 패턴들
+#
+# 주의: 각 줄은 하나의 SMARTS 패턴을 나타냅니다.
+# 주석은 # 기호로 시작하면 무시됩니다.
+# 이 파일은 standardize_smiles.py의 load_salt_smarts_list() 함수로 읽혀집니다.
+
+## ============================================================================
+## 1. COMMON ANIONS (음이온)
+## ============================================================================
+
+# Halides (할로겐화물)
+[Cl-]
+[Br-]
+[I-]
+[F-]
+
+# Carboxylates (카르복실산염)
+# Formate, Acetate, Propionate, Isobutyrate, Valerate, Benzoate
+[O-]C(=O)C
+[O-]C(=O)CC
+[O-]C(=O)C(C)C
+[O-]C(=O)CC(C)C
+[O-]C(=O)CCCCC
+[O-]C(=O)c1ccccc1
+
+# Sulfates (황산염)
+OS(=O)(=O)[O-]
+OS(=O)(=O)O
+
+# Sulfite (아황산염)
+OS(=O)[O-]
+
+# Nitrate (질산염)
+[O-][N+](=O)[O-]
+
+# Phosphates (인산염)
+[O-]P(=O)(O)(O)
+[O-]P(=O)(O)[O-]
+[O-]P(=O)([O-])[O-]
+
+# Hydroxide (수산화물)
+[OH-]
+[O-]
+
+## ============================================================================
+## 2. COMMON CATIONS (양이온)
+## ============================================================================
+
+# Alkali metals (알칼리 금속)
+[Na+]
+[K+]
+[Li+]
+
+# Alkaline earth metals (알칼리토금속)
+[Ca+2]
+[Mg+2]
+
+# Ammonium (암모늄)
+[NH4+]
+
+# Imidazolium (이미다졸리움)
+[n+]
+c[n+]
+
+## ============================================================================
+## 3. PHARMACEUTICAL SPECIFIC SALTS (약학적 특정 염)
+## ============================================================================
+
+# Trifluoroacetate (삼불화초산염) - 매우 일반적
+[O-]C(=O)C(F)(F)F
+
+# Triflate (트리플루오로메탄술포네이트)
+[O-]S(=O)(=O)C(F)(F)F
+
+# Mesylate (메실산염)
+[O-]S(=O)(=O)C
+
+# Tosylate (p-톨루엔술포네이트)
+[O-]S(=O)(=O)c1ccc(C)cc1
+
+# Besylate (벤젠술포네이트)
+[O-]S(=O)(=O)c1ccccc1
+
+# Malate (말레산염 - 음전하)
+[O-]C(=O)C=CC(=O)[O-]
+
+# Citrate (구연산염)
+[O-]C(=O)CC(C(=O)[O-])C(=O)[O-]
+
+# Tartrate (주석산염)
+[O-]C(=O)[CH](O)[CH](O)C(=O)[O-]
+
+# Succinate (숙신산염)
+[O-]C(=O)CCC(=O)[O-]
+
+# Fumarate (푸마르산염)
+[O-]C(=O)C=CC(=O)[O-]
+
+# Lactate (젖산염)
+[O-]C(=O)C(C)O
+
+# Gluconate (글루콘산염)
+[O-]C(=O)[CH](O)[CH](O)[CH](O)[CH](O)CO
+
+## ============================================================================
+## 4. SOLVATES & HYDRATES (용매화물 & 수화물) - REMOVED: Generic patterns too broad
+## ============================================================================
+
+# NOTE: Removed generic patterns (O, CO, CCO, CC(=O)C) as they match legitimate drug fragments
+# Only keep specific, well-defined solvent patterns if needed
+
+## ============================================================================
+## 5. BUFFER SALTS & BIOCHEMICAL (버퍼염 & 생화학적)
+## ============================================================================
+
+# Phosphate buffer salts
+[O-]P(=O)(O)[O-]
+
+# Bicarbonate (중탄산)
+[O-]C(=O)O
+
+# Carbonate (탄산)
+[O-]C(=O)[O-]
+
+## ============================================================================
+## 6. COUNTERION COMPLEXES (반대이온 복합체) - CLEANED
+## ============================================================================
+
+# NOTE: Removed duplicate entries (already in sections 1-5)
+# [Cl-], [O-]S(=O)(=O)[O-], [O-]C(=O)C, [O-]C(=O)CC(C(=O)[O-])C(=O)[O-] already listed
+
+## ============================================================================
+## 7. METAL IONS (금속 이온) - 무기 화학용
+## ============================================================================
+
+# Transition metals
+[Cu+]
+[Cu+2]
+[Fe+2]
+[Fe+3]
+[Zn+2]
+[Mg+2]
+[Ca+2]
+
+## ============================================================================
+## 주석 및 사용법:
+## ============================================================================
+## 
+## 1. 파일 포맷:
+##    - 각 줄은 하나의 SMARTS 패턴
+##    - # 로 시작하는 줄은 주석 (무시됨)
+##    - 빈 줄도 무시됨
+##
+## 2. QSAR 전처리 권장 사항:
+##    - 기본 Salts.txt: 4개 패턴 (minimal)
+##    - Salts_extended.txt: 50+ 패턴 (comprehensive)
+##    - 선택: 데이터셋 특성에 맞게 조정
+##
+## 3. 사용 예:
+##    from standardize_smiles import standardize_smiles
+##    result = standardize_smiles(smiles, salt_file="Salts_extended.txt")
+##
+## 4. 성능 고려:
+##    - 더 많은 SMARTS 패턴 = 더 엄격한 필터링
+##    - 데이터 손실(False Positive) vs 오염 제거(True Negative) 트레이드오프
+##    - 추천: 작은 테스트 세트에서 검증 후 적용
+##
+## ============================================================================

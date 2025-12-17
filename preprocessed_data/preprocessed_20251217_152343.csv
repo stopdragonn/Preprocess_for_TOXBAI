@@ -1,0 +1,9 @@
+Name,SMILES,SMILES_clean
+Aspirin,CC(=O)Oc1ccccc1C(=O)O,CC(=O)Oc1ccccc1C(=O)O
+Benzene,c1ccccc1,c1ccccc1
+Caffeine,CN1C=NC2=C1C(=O)N(C(=O)N2C)C.[Cl-],Cn1c(=O)c2c(ncn2C)n(C)c1=O
+Ibuprofen,CC(C)Cc1ccc(cc1)C(C)C(=O)O,CC(C)Cc1ccc(C(C)C(=O)O)cc1
+Ethanol,CCO,CCO
+Paracetamol,CC(=O)Nc1ccc(O)cc1,CC(=O)Nc1ccc(O)cc1
+Warfarin,CC(=O)CC(C)C1=C(O)c2ccccc2OC1=O,CC(=O)CC(C)c1c(O)c2ccccc2oc1=O
+Theophylline,CN1c2ccccc2C(=O)N(C1=O)C,Cn1c(=O)c2ccccc2n(C)c1=O

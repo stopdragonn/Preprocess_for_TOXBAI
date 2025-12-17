@@ -1,363 +1,249 @@
-# SMILES 전처리 파이프라인
+﻿# QSAR Preprocessing Pipeline for Toxicology (TOXBAI)
 
-> RDKit과 pandas를 이용해 SMILES 데이터에 대해 ‘염 제거 → 유기물질 선택 → (선택적) 분자설명자 계산’ 단계를 자동화
-
-## 목차
-
-* [소개](#소개)
-* [사전 요구사항](#사전-요구사항)
-* [입력 파일](#입력-파일)
-* [설치 방법](#설치-방법)
-* [사용법](#사용법)
-* [워크플로우 단계](#워크플로우-단계)
-
-  * [1. 염 제거 (Salt Stripping)](#1-염-제거-salt-stripping)
-  * [2. 유기물질 선택 (Organic Subset Filtering)](#2-유기물질-선택-organic-subset-filtering)
-  * [3. (선택적) 분자설명자 생성 (Descriptor Calculation)](#3-선택적-분자설명자-생성-descriptor-calculation)
-* [파이프라인 예제](#파이프라인-예제)
-* [저장소 구조](#저장소-구조)
-* [기여](#기여)
-* [라이선스](#라이선스)
+> **Comprehensive SMILES preprocessing + 400+ molecular descriptors for QSAR/toxicology modeling**
+> 
+> **3-Stage Pipeline**: File Loading → SMILES Preprocessing → Descriptor Calculation
 
 ---
 
-## 소개
+## 📋 Features
 
-전처리된 SMILES 데이터를 바탕으로 RDKit을 활용해 염 제거, 유기물질 필터링 단계를 수행하고, 필요 시 분자설명자 계산 단계를 추가로 실행합니다.
+✅ **Stage 1: File Loading**
+- Supports Excel (.xlsx, .xls) and CSV formats
+- Automatic test_data folder recognition
+- File preview with data validation
 
-## ✨ NEW: Enhanced Standardization Module
+✅ **Stage 2: SMILES Preprocessing**
+- MolVS standardization (tautomer normalization)
+- Salt removal (TOXBAI SMARTS patterns)
+- pH 7.4 protomer normalization
+- Organic molecule filtering
+- Stereochemistry preservation
+- Pass rate statistics & visualization
 
-이 리포지토리에는 이제 **통합 표준화 모듈** (`standardize_smiles.py`)이 포함되어 있습니다!
+✅ **Stage 3: Molecular Descriptors (400+)**
+- **192** AUTOCORR2D descriptors (2D autocorrelation)
+- **60+** Functional group descriptors (drug metabolism)
+- **80+** Basic descriptors (MW, LogP, TPSA, etc.)
+- **40+** VSA descriptors (surface area based)
+- **12** Chi connectivity indices
+- **8** BCUT2D eigenvalue descriptors
+- **And many more...**
 
-### 주요 기능
+---
 
-이 모듈은 TOXBAI 전처리 로직과 MolVS Standardizer를 통합하여 다음을 제공합니다:
+## 🚀 Quick Start
 
-1. **MolVS Standardization** (선택적)
-   - Tautomer 정규화
-   - 전하 중성화
-   - 방향족 처리
+### Installation
+```bash
+# 1. Clone repository
+git clone https://github.com/stopdragonn/Preprocess_for_TOXBAI.git
+cd Preprocess_for_TOXBAI
 
-2. **TOXBAI-style Salt Removal**
-   - SMARTS 패턴 기반 salt 제거
-   - 커스텀 salt 리스트 지원
+# 2. Install dependencies
+pip install -r requirements.txt
 
-3. **Organic Filtering**
-   - 허용된 원소만 포함하는 분자 선별
-   - 무기물 자동 제거
+# 3. Launch Jupyter Notebook
+jupyter notebook QSAR_Preprocessing_Pipeline.ipynb
+```
 
-### 빠른 시작
+### Notebook Workflow (5 Steps)
 
+**Step 1: Import Libraries** (Cell 1)
+- Click "Run" to load all required packages
+
+**Step 2: Generate Test Data** (Cell 3, Optional)
+- Click button to create 10 sample molecules in `test_data/`
+- Useful for testing before using your own data
+
+**Step 3: Load File** (Cell 2)
+- Enter path: `test_data/test_molecules.xlsx` (default)
+- Click "Load File" button
+- Review data preview
+
+**Step 4: Run Preprocessing** (Cell 7)
+- Enter SMILES column name: `SMILES` (default)
+- Click "Run Preprocessing" button
+- View 4-panel statistics dashboard
+- Results saved to `preprocessed_data/` folder
+
+**Step 5: Calculate Descriptors** (Cell 11)
+- Click "Calculate Descriptors" button
+- Waits for Step 4 completion
+- Processes 400+ descriptors per molecule
+- Results saved to `molecular_descriptors/` folder
+
+### Python Script Usage
 ```python
-from standardize_smiles import standardize_smiles
+import pandas as pd
+from qsar_preprocess import QSARPreprocessor
 
-# 기본 사용 (모든 기능 활성화)
-result = standardize_smiles("CC(=O)[O-].[Na+]")
-print(result)  # Output: CC(=O)[O-]
+# Load your data
+df = pd.read_excel("molecules.xlsx")
 
-# TOXBAI 방식만 사용 (MolVS 없이)
-from standardize_smiles import standardize_smiles_toxbai
-result = standardize_smiles_toxbai("CC(=O)[O-].[Na+]")
-
-# 커스텀 파라미터
-result = standardize_smiles(
-    "CC(=O)[O-].[Na+]",
+# Create preprocessor
+preprocessor = QSARPreprocessor(
     use_molvs=True,
     remove_salts=True,
-    filter_organics=True,
-    salt_file="Salts.txt"
-)
-```
-
-### 예제 실행
-
-```bash
-# 다양한 사용 예시 확인
-python example_usage.py
-
-# 모듈 직접 실행 (built-in examples)
-python standardize_smiles.py
-```
-
-### 상세 문서
-
-- **[COMPARISON.md](COMPARISON.md)**: MolVS vs TOXBAI 방식의 상세 비교
-- **[example_usage.py](example_usage.py)**: 7가지 사용 시나리오 예제
-- **[standardize_smiles.py](standardize_smiles.py)**: 통합 모듈 (완전한 주석 포함)
-
-## 🆕 MolVS 전용 전처리 파이프라인
-
-독성 모델링을 위한 **MolVS 전용 전처리 파이프라인** (`molvs_preprocess.py`)이 추가되었습니다!
-
-### 특징
-
-이 파이프라인은 MolVS 라이브러리만 사용하여 다음 단계를 수행합니다:
-
-1. **Standardizer**: 기본 정규화 (토토머, 이상한 결합 수정)
-2. **LargestFragmentChooser**: 가장 큰 조각만 남기기 (염/용매 제거)
-3. **Uncharger**: 전하 중화 (COO⁻ → COOH, NH₃⁺ → NH₂)
-
-### 사용법
-
-```bash
-# 필수 라이브러리 설치
-pip install molvs
-
-# 파이프라인 실행
-python molvs_preprocess.py
-```
-
-### 함수 사용 예제
-
-```python
-from molvs_preprocess import preprocess_pipeline
-
-# SMILES 전처리
-smiles = "CN(C)C(=N)N=C(N)N.Cl"  # Metformin HCl
-cleaned = preprocess_pipeline(smiles)
-print(cleaned)  # Output: CN(C)C(=N)N=C(N)N
-```
-
-### 테스트 데이터 결과
-
-| Original SMILES                                | Processed (Final)                 |
-|-----------------------------------------------|-----------------------------------|
-| `CN(C)C(=N)N=C(N)N.Cl`                       | `CN(C)C(=N)N=C(N)N`              |
-| `[Na+].[O-]C(=O)Cc1ccccc1Nc1c(Cl)cccc1Cl`    | `O=C(O)Cc1ccccc1Nc1c(Cl)cccc1Cl` |
-| `CCC.O.[Na+].[Cl-]`                           | `CCC`                             |
-
-### 왜 MolVS 전용 파이프라인을 사용하나요?
-
-- **독성 모델링 최적화**: 전하 중화된 중성 상태로 변환하여 독성 예측 모델에 더 적합
-- **간단하고 직관적**: MolVS 라이브러리만 사용하여 의존성 최소화
-- **표준 방식**: 화학정보학에서 널리 사용되는 MolVS의 표준 전처리 방식 적용
-
-## 사전 요구사항
-
-* Python 3.8 이상
-* Conda 환경 권장
-* 주요 라이브러리:
-
-  * rdkit-pypi
-  * pandas
-  * tqdm
-
-```bash
-# Conda 환경 생성 예시
-conda create -n chem_preprocess python=3.8
-conda activate chem_preprocess
-pip install rdkit-pypi pandas tqdm
-```
-
-## 입력 파일
-
-* **Preprocessed1\_Uniq\&NaNhandling.csv**: 중복값 제거 및 결측치 처리 완료 후 SMILES 컬럼이 담긴 파일
-
-## 설치 방법
-
-```bash
-git clone <GitHub_repo_URL>
-cd <repo_folder>
-conda activate chem_preprocess
-pip install -r requirements.txt
-```
-
-## 사용법
-
-기본 전처리만 실행:
-
-```bash
-python preprocess.py \
-  --input Preprocessed1_Uniq&NaNhandling.csv \
-  --output_dir ./outputs \
-  --smiles-col SMILES \
-  --n-procs 4 \
-  --chunksize 100
-```
-
-분자설명자 계산까지 포함 실행:
-
-```bash
-python preprocess.py \
-  --input Preprocessed1_Uniq&NaNhandling.csv \
-  --output_dir ./outputs \
-  --compute-descriptors \
-  --smiles-col SMILES \
-  --n-procs 4 \
-  --chunksize 100
-```
-
-`--salts` 옵션은 지정하지 않으면 `Salts.txt`를 사용합니다. 필요에 따라 `--input`, `--output_dir`, `--compute-descriptors`, `--smiles-col` 옵션을 조정하세요.
-병렬 처리를 위해 `--n-procs` 값(기본 1)을 늘리고, `--chunksize` 값(기본 100)을 조정해 성능을 최적화할 수 있습니다.
-
-## 워크플로우 단계
-
-### 1. 염 제거 (Salt Stripping)
-
-```python
-from rdkit import Chem
-from rdkit.Chem import SaltRemover
-
-remover = SaltRemover.SaltRemover(defnFile='Salts.txt', onlyUncharged=False)
-
-def strip_salts(smiles: str) -> str:
-    mol = Chem.MolFromSmiles(smiles)
-    if not mol:
-        return None
-    stripped = remover.StripMol(mol)
-    return Chem.MolToSmiles(stripped)
-```
-
-* **입력**: `Preprocessed1_Uniq&NaNhandling.csv`
-* **출력**: `Preprocessed2_Saltstripped.csv`
-* **검증**: 제거 전·후 row 수 비교, 대표 SMILES 확인
-
-### 2. 유기물질 선택 (Organic Subset Filtering)
-
-```python
-from rdkit import Chem
-
-allowed = set(['C','N','O','S','P','B','F','Cl','Br','I','H','D','T'])
-
-def filter_organic(smiles: str) -> bool:
-    mol = Chem.MolFromSmiles(smiles)
-    if not mol:
-        return False
-    symbols = {atom.GetSymbol() for atom in mol.GetAtoms()}
-    return symbols.issubset(allowed)
-```
-
-* **입력**: `Preprocessed2_Saltstripped.csv`
-* **출력**: `Preprocessed3_Organicselected.csv`
-* **검증**: 필터링 건수 로그 출력
-
-### 3. (선택적) 분자설명자 생성 (Descriptor Calculation)
-
-```python
-import pandas as pd
-from rdkit import Chem
-from rdkit.Chem import Descriptors
-
-descriptor_funcs = {
-    'SlogP': Descriptors.MolLogP,
-    'SMR': Descriptors.MolMR,
-    'LabuteASA': Descriptors.LabuteASA,
-    'MolWt': Descriptors.MolWt,
-    'NumHAcceptors': Descriptors.NumHAcceptors,
-    'NumHDonors': Descriptors.NumHDonors,
-    'TPSA': Descriptors.TPSA,
-    'NumRotatableBonds': Descriptors.NumRotatableBonds,
-}
-
-def calc_descriptors(smiles: str) -> dict:
-    mol = Chem.MolFromSmiles(smiles)
-    if not mol:
-        return {name: None for name in descriptor_funcs}
-    values = {}
-    for name, func in descriptor_funcs.items():
-        try:
-            values[name] = func(mol)
-        except:
-            values[name] = None
-    return values
-```
-
-* **입력**: `Preprocessed3_Organicselected.csv`
-* **출력**: `Preprocessed4_DescriptorGen.csv` (해당 옵션 실행 시)
-* **예외처리**: 계산 실패 시 None
-
-## 파이프라인 예제
-
-```python
-import pandas as pd
-from workflow import (
-    load_salt_remover,
-    strip_salts,
-    filter_organic,
-    calc_descriptors,
-    parallel_series_apply,
-)
-import argparse
-
-parser = argparse.ArgumentParser()
-parser.add_argument('--input', required=True)
-parser.add_argument('--salts', default='Salts.txt')
-parser.add_argument('--output_dir', required=True)
-parser.add_argument('--compute-descriptors', action='store_true')
-parser.add_argument('--smiles-col', default='SMILES')
-parser.add_argument('--n-procs', type=int, default=1)
-parser.add_argument('--chunksize', type=int, default=100)
-args = parser.parse_args()
-
-# 1) Load
-df = pd.read_csv(args.input)
-
-# 2) Salt stripping
-remover = load_salt_remover(args.salts)
-df['smiles_stripped'] = parallel_series_apply(
-    df[args.smiles_col],
-    lambda s: strip_salts(s, remover),
-    n_procs=args.n_procs,
-    desc='salt_strip',
-    chunksize=args.chunksize,
-)
-filtered1 = df.dropna(subset=['smiles_stripped'])
-filtered1.to_csv(
-    f"{args.output_dir}/Preprocessed2_Saltstripped.csv",
-    index=False,
+    filter_organics=True
 )
 
-# 3) Organic filtering
- mask = parallel_series_apply(
-     filtered1['smiles_stripped'],
-     filter_organic,
-     n_procs=args.n_procs,
-     desc='organic_filter',
-     chunksize=args.chunksize,
- )
-filtered2 = filtered1[mask]
-filtered2.to_csv(
-    f"{args.output_dir}/Preprocessed3_Organicselected.csv",
-    index=False,
+# Run preprocessing
+df_clean = preprocessor.preprocess_dataframe(
+    df, 
+    smiles_column="SMILES",
+    keep_original=True,
+    drop_invalid=True
 )
 
-# 4) Optional: Descriptor generation
- if args.compute_descriptors:
-     desc_df = parallel_series_apply(
-         filtered2['smiles_stripped'],
-         calc_descriptors,
-         n_procs=args.n_procs,
-         desc='descriptors',
-         chunksize=args.chunksize,
-     ).apply(pd.Series)
-     pd.concat([filtered2.reset_index(drop=True), desc_df.reset_index(drop=True)], axis=1)\
-       .to_csv(f"{args.output_dir}/Preprocessed4_DescriptorGen.csv", index=False)
+# Save results
+df_clean.to_csv("preprocessed.csv", index=False)
 ```
 
-## 저장소 구조
+---
+
+## 📁 Project Structure
 
 ```
-├── Salts.txt
-├── preprocess.py         # 파이프라인 실행 스크립트 (TOXBAI 방식)
-├── workflow.py           # 함수 정의 모듈
-├── molvs_preprocess.py   # MolVS 전용 전처리 파이프라인 ⭐NEW
-├── standardize_smiles.py # 통합 표준화 모듈
-├── example_usage.py      # standardize_smiles.py 사용 예제
-├── requirements.txt
-├── README.md
-└── outputs/
-    ├── Preprocessed2_Saltstripped.csv
-    ├── Preprocessed3_Organicselected.csv
-    └── Preprocessed4_DescriptorGen.csv  # 옵션 실행 시
+Preprocess_for_TOXBAI/
+├── QSAR_Preprocessing_Pipeline.ipynb   ⭐ Main Jupyter notebook
+├── qsar_preprocess.py                  Preprocessing module
+├── standardize_smiles.py               SMILES utilities
+├── requirements.txt                    Dependencies
+├── Salts_extended.txt                  Salt patterns
+├── README.md                           Documentation
+│
+├── test_data/                          📂 Input folder
+│   └── test_molecules.xlsx
+│
+├── preprocessed_data/                  📂 Stage 1 output (auto-created)
+│   └── preprocessed_*.csv
+│
+└── molecular_descriptors/              📂 Stage 2 output (auto-created)
+    └── descriptors_*.csv
 ```
 
-## 기여
+---
 
-1. Fork the repository
-2. 새로운 브랜치 생성
-3. 변경 후 `git commit`
-4. `git push` 및 Pull Request 생성
+## ⚙️ Default Settings
 
-## 라이선스
+| Setting | Value |
+|---------|-------|
+| **MolVS Standardization** | ✓ Enabled |
+| **Salt Removal** | ✓ Enabled |
+| **pH 7.4 Protomer** | ✓ Enabled |
+| **Organic Filter** | ✓ Enabled |
+| **Stereochemistry** | ✓ Preserved |
 
-MIT License
+---
+
+## 📊 Output Format
+
+### Stage 1: `preprocessed_data/preprocessed_YYYYMMDD_HHMMSS.csv`
+```
+Name, SMILES, SMILES_clean, Activity, ...
+Aspirin, CC(=O)Oc1ccccc1C(=O)O, CC(=O)Oc1ccccc1C(=O)O, 0.8, ...
+```
+
+### Stage 2: `molecular_descriptors/descriptors_YYYYMMDD_HHMMSS.csv`
+```
+SMILES_clean, MolWt, LogP, TPSA, AUTOCORR2D_1, ..., AUTOCORR2D_192, ...
+CC(=O)Oc1ccccc1C(=O)O, 180.16, 1.19, 63.6, 1.2, ..., 0.5, ...
+```
+
+---
+
+## 📈 Descriptor Categories (400+)
+
+| Category | Count | Example |
+|----------|-------|---------|
+| **AUTOCORR2D** | 192 | 2D spatial descriptors |
+| **Functional Groups** | 60+ | fr_aldehyde, fr_ketone, fr_amide |
+| **Basic** | 80+ | MolWt, LogP, TPSA, NumHDonors |
+| **VSA** | 40+ | PEOE_VSA1-14, EState_VSA1-11 |
+| **Chi** | 12 | Chi0, Chi1, Chi1v, Chi2v, ... |
+| **BCUT2D** | 8 | BCUT2D_MWLOW, BCUT2D_MWHIGH, ... |
+| **Other** | 8+ | Kappa1, Kappa2, HallKierAlpha, ... |
+
+---
+
+## 🛠️ Dependencies
+
+```bash
+rdkit>=2022.09          # Chemistry & molecular descriptors
+pandas>=1.3.0           # Data manipulation
+numpy>=1.20.0           # Numerical computing
+molvs>=0.1.1            # SMILES standardization
+matplotlib>=3.3.0       # Visualization
+seaborn>=0.11.0         # Statistical plots
+jupyter>=1.0.0          # Notebook environment
+ipywidgets>=8.0.0       # Interactive widgets
+openpyxl>=3.0.0         # Excel file support
+```
+
+---
+
+## 🔑 Key Features
+
+### ✅ **Easy to Use**
+- Interactive Jupyter interface with buttons
+- No command-line knowledge required
+- Point-and-click workflow
+
+### ✅ **Comprehensive**
+- 400+ descriptors for QSAR modeling
+- 60+ functional groups for drug metabolism
+- 4-panel visualization dashboard
+
+### ✅ **Robust**
+- Error handling for invalid SMILES
+- Quality control with pass rate statistics
+- Organized timestamped outputs
+
+### ✅ **Flexible**
+- Excel & CSV support
+- Preserves original columns & stereochemistry
+- Customizable preprocessing options
+
+---
+
+## 📥 Input Format
+
+### Requirements
+- SMILES column (default name: `SMILES`)
+- Additional columns are preserved
+- One molecule per row
+
+### Example
+| Name | SMILES | Activity |
+|------|--------|----------|
+| Aspirin | CC(=O)Oc1ccccc1C(=O)O | 0.8 |
+| Caffeine | CN1C=NC2=C1C(=O)N(C(=O)N2C)C | 0.6 |
+
+---
+
+## 📞 Troubleshooting
+
+**Issue**: File not found
+- Solution: Place Excel/CSV in `test_data/` folder or current directory
+
+**Issue**: "SMILES column not found"
+- Solution: Verify column name matches (case-sensitive)
+
+**Issue**: Descriptor calculation fails
+- Solution: Run preprocessing (Step 4) first
+
+**Issue**: Missing dependencies
+- Solution: `pip install -r requirements.txt`
+
+---
+
+## 📄 License
+
+See LICENSE file
+
+---
+
+**Version**: 2.0 (400+ Descriptors)  
+**Updated**: 2025-12-17  
+**Status**: ✅ Production Ready
